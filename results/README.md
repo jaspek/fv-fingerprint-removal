@@ -28,6 +28,7 @@ not be mixed in one table.
 | `results_pad_train_v210_leakfree_PLUS_drit.csv`, `..._cyclegan.csv`, `..._distancegan.csv`, `..._stargan-v2.csv` (+ `_per_fold`) | the chain (notch, then leak-free matching) on the course GAN sets of PLUS, variants 003, 003, 001, 001 |
 | `results_pad_train_v210_PLUS_development.csv` | ablation on PLUS, twins from all real PAI: notch only, notch + ring matching, ring x sector matching at rmin 0 and strengths 0.5 and 0.75, rmin 0.03, the retrained CycleGAN sets untouched |
 | `results_pad_train_v210_IDIAP_notch.csv` | notch only on IDIAP (harmful on all three extractors) |
+| `results_pad_train_v210_SCUT_dither.csv` | dither probe on SCUT, LBP only: flat 3x3 neighbourhoods flipped by one grey level with probability 0.4 and 1.0 |
 | `results_probe_PLUS_v210.csv` | radial-spectrum SVM probe: real attacks against untouched AE_Res, applied to the cleaned fold-0 set and the fixed-layer CycleGAN set before and after cleaning |
 
 ## pad_train 1.0.2, PLUS

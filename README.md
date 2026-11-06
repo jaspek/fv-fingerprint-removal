@@ -63,7 +63,11 @@ PLUS and IDIAP are closed on all three extractors. On SCUT, spectrum matching br
 detector from 94 to 12 % without any added noise, and spectrum filling (random-phase noise with the
 per-cell energy deficit of the twin, rings above 0.45 cycles per pixel only) gives the same within
 the fold spread. The notch adds nothing on SCUT. Two signatures stay: the Haralick detector keeps a
-floor near 25 to 30 %, and LBP does not move under any spectral operator or noise level. Added
+floor near 25 to 30 %, and LBP does not move under any spectral operator or noise level, nor under
+the dither probe: flipping 40 % or all of the flat 3x3 neighbourhoods by one grey level brings the
+share of equal-valued neighbours from 0.41 to 0.36 and 0.33 (the tie-matched set sits at 0.35) and
+leaves LBP at 100 % (`results_pad_train_v210_SCUT_dither.csv`), so the LBP signature is not the
+tie count but the pattern codes themselves. Added
 noise alone does not solve it either: the tie statistic chooses too little for the full-band Fourier
 detector (sigma 0.3 against the 0.5 of the sweep), and more noise is a fingerprint of its own
 (sigma 1.0 gives Fourier 58 % and Haralick 84 %).

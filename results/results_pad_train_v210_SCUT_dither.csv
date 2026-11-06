@@ -1,0 +1,4 @@
+dataset,extractor,protocol,train_attack,APCER,BPCER,ACER
+SCUT,lbp,baseline,spoof,0.01361111111111111,0.020833333333333336,0.017222222222222222
+SCUT,lbp,synthetic,AE_Res-dither-p0.4,1.0,0.0,0.5
+SCUT,lbp,synthetic,AE_Res-dither-p1.0,1.0,0.0,0.5
