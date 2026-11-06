@@ -50,6 +50,7 @@ baseline = trained on real attacks.
 | PLUS baseline | | 4.8 | 0.0 | 0.0 |
 | IDIAP untouched | | 79.6 | 74.6 | 51.3 |
 | IDIAP cleaned | noise-level matching, sigma 1.4 on average | 0.0 | 5.8 | 2.1 |
+| IDIAP cleaned | spectrum matching only, rmin 0.05 | 0.0 | 20.4 | 1.7 |
 | IDIAP baseline | | 0.0 | 2.9 | 1.3 |
 | SCUT untouched | | 94.1 | 100.0 | 59.6 |
 | SCUT cleaned | spectrum matching only, rmin 0.05 | 11.6 | 99.8 | 29.3 |
@@ -59,8 +60,11 @@ baseline = trained on real attacks.
 | SCUT cleaned | white noise, sigma 0.5 (sweep, not a recipe) | 11.8 | 100.0 | 30.1 |
 | SCUT baseline | | 4.6 | 1.4 | 0.1 |
 
-PLUS and IDIAP are closed on all three extractors. On SCUT, spectrum matching brings the Fourier
-detector from 94 to 12 % without any added noise, and spectrum filling (random-phase noise with the
+PLUS and IDIAP are closed on all three extractors, IDIAP by the added noise: spectrum matching
+alone closes its Fourier and Haralick detectors but leaves LBP at 20 % (one fold at 50 %), because
+rescaling nearly empty spectrum cells cannot supply the missing noise floor that the LBP codes see.
+On SCUT it is the other way round: spectrum matching brings the Fourier detector from 94 to 12 %
+without any added noise, and spectrum filling (random-phase noise with the
 per-cell energy deficit of the twin, rings above 0.45 cycles per pixel only) gives the same within
 the fold spread. The notch adds nothing on SCUT. Two signatures stay: the Haralick detector keeps a
 floor near 25 to 30 %, and LBP does not move under any spectral operator or noise level, nor under
@@ -154,9 +158,10 @@ python tools/apply_removal.py --in <root>/AE_Res-diff/SCUT/spoof/samples --out <
 python tools/run_pad_train_cleaned.py --data-root <root> --source AE_Res-noise0.5 --datasets SCUT --out results/results_pad_train_v210_recheck_SCUT.csv
 ```
 
-Spectrum matching only and spectrum filling on SCUT:
+Spectrum matching only on IDIAP and SCUT, spectrum filling on SCUT:
 
 ```
+python tools/run_pad_train_leakfree.py --data-root <root> --dataset IDIAP --notched AE_Res-diff --op-name specmatch --match "strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05" --out-prefix AE_Res-match --out results/results_pad_train_v210_leakfree_IDIAP_match.csv
 python tools/run_pad_train_leakfree.py --data-root <root> --dataset SCUT --notched AE_Res-diff --op-name specmatch --match "strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05" --out-prefix AE_Res-match --out results/results_pad_train_v210_leakfree_SCUT_match.csv
 python tools/run_pad_train_leakfree.py --data-root <root> --dataset SCUT --notched AE_Res-diff --op-name specfill --match "strength=1.0,mode=1,sectors=8,rmin=0.45" --out-prefix AE_Res-fill --out results/results_pad_train_v210_leakfree_SCUT_fill.csv
 ```

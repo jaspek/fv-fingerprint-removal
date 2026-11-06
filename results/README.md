@@ -24,6 +24,7 @@ not be mixed in one table.
 | `results_pad_train_v210_recheck_SCUT.csv` | white noise sigma 0.5 and 1.0 |
 | `results_pad_train_v210_leakfree_PLUS.csv` (+ `_per_fold`) | notch + matching, rmin 0.05, twins from the training subjects of each fold |
 | `results_pad_train_v210_leakfree_IDIAP.csv`, `..._SCUT.csv` (+ `_per_fold`) | noise-level matching per fold (equal-neighbour share, twins from the training subjects), mean sigma 1.4 on IDIAP and 0.3 on SCUT |
+| `results_pad_train_v210_leakfree_IDIAP_match.csv` (+ `_per_fold`) | IDIAP: spectrum matching only (rmin 0.05), twins from the training subjects of each fold |
 | `results_pad_train_v210_leakfree_SCUT_match.csv`, `..._fill.csv`, `..._chain.csv` (+ `_per_fold`) | SCUT: spectrum matching only (rmin 0.05), spectrum filling (rmin 0.45), notch then matching; twins from the training subjects of each fold |
 | `results_pad_train_v210_leakfree_PLUS_drit.csv`, `..._cyclegan.csv`, `..._distancegan.csv`, `..._stargan-v2.csv` (+ `_per_fold`) | the chain (notch, then leak-free matching) on the course GAN sets of PLUS, variants 003, 003, 001, 001 |
 | `results_pad_train_v210_PLUS_development.csv` | ablation on PLUS, twins from all real PAI: notch only, notch + ring matching, ring x sector matching at rmin 0 and strengths 0.5 and 0.75, rmin 0.03, the retrained CycleGAN sets untouched |

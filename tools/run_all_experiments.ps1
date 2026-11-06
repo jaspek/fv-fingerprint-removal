@@ -1,4 +1,4 @@
-# Batch driver of the 6 November 2026 experiments (quality, detector probe, SCUT variants, the four GANs, the PLUS ablation, the dither probe).
+# Batch driver of the 6 November 2026 experiments (quality, detector probe, SCUT variants, the four GANs, the PLUS ablation, the dither probe, IDIAP matching only).
 # Runs every prepared experiment in order, with checkpoints:
 #   - a step whose result files already exist is skipped, so the same command can be re-run after an interruption,
 #   - every step's console output is saved to results\logs\<step>.log, start, end, exit code and duration go to results\logs\master.log,
@@ -150,6 +150,13 @@ Step "E5_SCUT_dither" @("$O\results_pad_train_v210_SCUT_dither.csv") {
     }
     return (Py $log @("run_pad_train_cleaned.py", "--data-root", $D, "--source", "AE_Res-dither-p0.4", "--source", "AE_Res-dither-p1.0", "--datasets", "SCUT",
         "--extractors", "lbp", "--out", "$O\results_pad_train_v210_SCUT_dither.csv"))
+}
+
+# ------------------------------------------------------------------ E7: IDIAP spectrum matching only, leak-free (about 40 min with the cached runner)
+Step "E7_IDIAP_match" @("$O\results_pad_train_v210_leakfree_IDIAP_match.csv") {
+    param($log)
+    return (Py $log @("run_pad_train_leakfree.py", "--data-root", $D, "--dataset", "IDIAP", "--notched", "AE_Res-diff", "--op-name", "specmatch",
+        "--match", $LEAKFREE_SPEC, "--out-prefix", "AE_Res-match-v210", "--resume", "--out", "$O\results_pad_train_v210_leakfree_IDIAP_match.csv"))
 }
 
 # ------------------------------------------------------------------ driver
