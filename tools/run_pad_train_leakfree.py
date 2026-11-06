@@ -16,6 +16,9 @@ times faster. The numbers are identical to evaluate(per_fold=True): same feature
 Checkpoints: the per-fold table <out>_per_fold.csv is written after every fold; with --resume, folds already in it
 are skipped and complete fold folders are reused (partial ones are cleaned again).
 
+Two leak-free stages chain with --per-fold-input: --notched then names the prefix of the first stage's fold folders and
+fold i reads <notched>-fold<i>/<synthetic dir>, so every stage of fold i only ever saw that fold's training subjects.
+
 Example (PowerShell, from PS/tools):
   python run_pad_train_leakfree.py --data-root <data root> --notched AE_Res-notch --out <work>/results_pad_train_PLUS_leakfree.csv
 """
@@ -44,6 +47,7 @@ def main():
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--dataset", default="PLUS")
     ap.add_argument("--notched", default="AE_Res-notch", help="synthetic source folder that already went through the notch")
+    ap.add_argument("--per-fold-input", action="store_true", help="--notched is a per-fold prefix: fold i reads <notched>-fold<i>/<synthetic dir>, the output of an earlier leak-free stage")
     ap.add_argument("--spoof-dir", default=None, help="real PAI folder with one sub-folder per subject (default: PLUS layout)")
     ap.add_argument("--match", default="strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05", help="specmatch options")
     ap.add_argument("--op-name", default="specmatch", help="operator that takes --ref: specmatch, specfill or noisematch")
@@ -71,9 +75,12 @@ def main():
     def pai_files(subject):
         return [f for d in spoof_dirs if (d / subject).is_dir() for f in (d / subject).iterdir() if f.suffix.lower() in exts]
     synthetic_rel = Path(layout.synthetic_dir) / settings.synthetic_attack_subdir
-    notched_dir = root / a.notched / synthetic_rel
+
+    def input_dir(fold):
+        return root / (f"{a.notched}-fold{fold}" if a.per_fold_input else a.notched) / synthetic_rel
+    notched_dir = input_dir(0)
     if not notched_dir.is_dir():
-        raise SystemExit(f"notched synthetic folder not found: {notched_dir}")
+        raise SystemExit(f"input synthetic folder not found: {notched_dir}")
 
     # Same fold split as pad_train.cross_validate: GroupKFold over subjects, samples ordered real then spoof.
     data = pad_train.load_data(a.dataset, (), False, settings)
@@ -109,10 +116,11 @@ def main():
         prev = pd.read_csv(per_fold_path)
         done = {int(f): g for f, g in prev.groupby("fold")}
         print(f"resuming: folds {sorted(done)} already evaluated in {per_fold_path.name}")
-    n_in = sum(1 for f in notched_dir.rglob("*") if f.suffix.lower() in exts)
+    def count_images(d):
+        return sum(1 for f in d.rglob("*") if f.suffix.lower() in exts) if d.is_dir() else 0
 
-    def complete(d):
-        return d.is_dir() and sum(1 for f in d.rglob("*") if f.suffix.lower() in exts) == n_in
+    def complete(d, n_in):
+        return d.is_dir() and count_images(d) == n_in
 
     fold_rows = []
     for i, (train_idx, _test_idx) in enumerate(splits):
@@ -125,13 +133,17 @@ def main():
         src_name = f"{a.out_prefix}-fold{i}"
         out_dir = root / src_name / synthetic_rel
         n_ref = sum(len(pai_files(s)) for s in train_subjects)
-        print(f"== fold {i}: {len(train_subjects)} training subjects, {n_ref} reference PAI images -> {src_name}")
-        cmd = [sys.executable, str(TOOLS / "apply_removal.py"), "--in", str(notched_dir), "--out", str(out_dir),
+        src_in = input_dir(i)
+        n_in = count_images(src_in)
+        if n_in == 0:
+            raise SystemExit(f"input synthetic folder of fold {i} missing or empty: {src_in}")
+        print(f"== fold {i}: {len(train_subjects)} training subjects, {n_ref} reference PAI images, {n_in} inputs from {src_in.parts[len(root.parts)]} -> {src_name}")
+        cmd = [sys.executable, str(TOOLS / "apply_removal.py"), "--in", str(src_in), "--out", str(out_dir),
                "--op", f"{a.op_name}:{a.match}", "--ref", str(ref_dir)]
         if a.dry_run:
             print("   ", " ".join(cmd))
             continue
-        if (a.reuse or a.resume) and complete(out_dir):
+        if (a.reuse or a.resume) and complete(out_dir, n_in):
             print(f"    reusing {out_dir} ({n_in} images)")
         else:
             if out_dir.is_dir():

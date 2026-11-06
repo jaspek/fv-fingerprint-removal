@@ -1,4 +1,4 @@
-# Batch driver of the 6 November 2026 experiments (quality, detector probe, SCUT variants, the four GANs, the PLUS ablation, the dither probe, IDIAP matching only).
+# Batch driver of the 6 November 2026 experiments (quality, detector probe, SCUT variants, the four GANs, the PLUS ablation, the dither probe, IDIAP matching only, the two-stage chains).
 # Runs every prepared experiment in order, with checkpoints:
 #   - a step whose result files already exist is skipped, so the same command can be re-run after an interruption,
 #   - every step's console output is saved to results\logs\<step>.log, start, end, exit code and duration go to results\logs\master.log,
@@ -157,6 +157,21 @@ Step "E7_IDIAP_match" @("$O\results_pad_train_v210_leakfree_IDIAP_match.csv") {
     param($log)
     return (Py $log @("run_pad_train_leakfree.py", "--data-root", $D, "--dataset", "IDIAP", "--notched", "AE_Res-diff", "--op-name", "specmatch",
         "--match", $LEAKFREE_SPEC, "--out-prefix", "AE_Res-match-v210", "--resume", "--out", "$O\results_pad_train_v210_leakfree_IDIAP_match.csv"))
+}
+
+# ------------------------------------------------------------------ E8: two-stage leak-free combinations on SCUT and IDIAP (about 1 h 10 and 45 min per step)
+#   a: matching, then tie-matched noise (reads the AE_Res-match-v210 fold folders); b: tie-matched noise, then matching (reads AE_Res-nmties-v210)
+foreach ($ds in @("SCUT", "IDIAP")) {
+    Step "E8a_${ds}_match_noise" @("$O\results_pad_train_v210_leakfree_${ds}_match_noise.csv") {
+        param($log)
+        return (Py $log @("run_pad_train_leakfree.py", "--data-root", $D, "--dataset", $ds, "--notched", "AE_Res-match-v210", "--per-fold-input", "--op-name", "noisematch",
+            "--match", "strength=1.0,mode=1,stat=1", "--out-prefix", "AE_Res-match-nm-v210", "--resume", "--out", "$O\results_pad_train_v210_leakfree_${ds}_match_noise.csv"))
+    }.GetNewClosure()
+    Step "E8b_${ds}_noise_match" @("$O\results_pad_train_v210_leakfree_${ds}_noise_match.csv") {
+        param($log)
+        return (Py $log @("run_pad_train_leakfree.py", "--data-root", $D, "--dataset", $ds, "--notched", "AE_Res-nmties-v210", "--per-fold-input", "--op-name", "specmatch",
+            "--match", $LEAKFREE_SPEC, "--out-prefix", "AE_Res-nm-match-v210", "--resume", "--out", "$O\results_pad_train_v210_leakfree_${ds}_noise_match.csv"))
+    }.GetNewClosure()
 }
 
 # ------------------------------------------------------------------ driver

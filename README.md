@@ -51,12 +51,14 @@ baseline = trained on real attacks.
 | IDIAP untouched | | 79.6 | 74.6 | 51.3 |
 | IDIAP cleaned | noise-level matching, sigma 1.4 on average | 0.0 | 5.8 | 2.1 |
 | IDIAP cleaned | spectrum matching only, rmin 0.05 | 0.0 | 20.4 | 1.7 |
+| IDIAP cleaned | noise-level matching, then spectrum matching | 0.0 | 6.7 | 2.1 |
 | IDIAP baseline | | 0.0 | 2.9 | 1.3 |
 | SCUT untouched | | 94.1 | 100.0 | 59.6 |
 | SCUT cleaned | spectrum matching only, rmin 0.05 | 11.6 | 99.8 | 29.3 |
 | SCUT cleaned | spectrum filling, rmin 0.45, sigma 0.65 on average | 10.8 | 100.0 | 24.5 |
 | SCUT cleaned | notch + spectrum matching, rmin 0.05 | 12.1 | 99.7 | 32.5 |
 | SCUT cleaned | noise-level matching, sigma 0.3 on average | 23.0 | 99.8 | 30.4 |
+| SCUT cleaned | noise-level matching, then spectrum matching | 12.0 | 99.8 | 44.2 |
 | SCUT cleaned | white noise, sigma 0.5 (sweep, not a recipe) | 11.8 | 100.0 | 30.1 |
 | SCUT baseline | | 4.6 | 1.4 | 0.1 |
 
@@ -75,6 +77,15 @@ tie count but the pattern codes themselves. Added
 noise alone does not solve it either: the tie statistic chooses too little for the full-band Fourier
 detector (sigma 0.3 against the 0.5 of the sweep), and more noise is a fingerprint of its own
 (sigma 1.0 gives Fourier 58 % and Haralick 84 %).
+
+The two operators in sequence, both stages leak-free (noise-level matching per fold, then spectrum
+matching per fold, each fold of the second stage reading only its own first-stage output), do not
+merge the two recipes: on IDIAP the matching after the noise changes nothing (0.0 / 6.7 / 2.1 against
+0.0 / 5.8 / 2.1), on SCUT the noise before the matching leaves the Fourier detector where matching
+alone puts it (12.0) and raises the Haralick floor from 29 to 44 %. The reverse order, matching and
+then noise, is a no-op by construction: the matched sets already sit at or below the real-PAI share
+of equal-valued neighbour pairs (IDIAP 0.121 against 0.114, SCUT 0.265 against 0.329) and the noise
+operator only adds noise, never removes it.
 
 The chain of PLUS (notch, then leak-free spectrum matching) on the four GAN sets of the course,
 360 images each, APCER in percent untouched / cleaned:
@@ -164,6 +175,13 @@ Spectrum matching only on IDIAP and SCUT, spectrum filling on SCUT:
 python tools/run_pad_train_leakfree.py --data-root <root> --dataset IDIAP --notched AE_Res-diff --op-name specmatch --match "strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05" --out-prefix AE_Res-match --out results/results_pad_train_v210_leakfree_IDIAP_match.csv
 python tools/run_pad_train_leakfree.py --data-root <root> --dataset SCUT --notched AE_Res-diff --op-name specmatch --match "strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05" --out-prefix AE_Res-match --out results/results_pad_train_v210_leakfree_SCUT_match.csv
 python tools/run_pad_train_leakfree.py --data-root <root> --dataset SCUT --notched AE_Res-diff --op-name specfill --match "strength=1.0,mode=1,sectors=8,rmin=0.45" --out-prefix AE_Res-fill --out results/results_pad_train_v210_leakfree_SCUT_fill.csv
+```
+
+The two-stage chain, where every fold of the second stage reads the first stage's folder of that fold:
+
+```
+python tools/run_pad_train_leakfree.py --data-root <root> --dataset IDIAP --notched AE_Res-nmties --per-fold-input --op-name specmatch --match "strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05" --out-prefix AE_Res-nm-match --out results/results_pad_train_v210_leakfree_IDIAP_noise_match.csv
+python tools/run_pad_train_leakfree.py --data-root <root> --dataset SCUT --notched AE_Res-nmties --per-fold-input --op-name specmatch --match "strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05" --out-prefix AE_Res-nm-match --out results/results_pad_train_v210_leakfree_SCUT_noise_match.csv
 ```
 
 Each leak-free run cleans the five folds one after the other; the runner extracts the features of
