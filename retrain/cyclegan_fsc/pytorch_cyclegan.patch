@@ -1,0 +1,44 @@
+diff --git a/models/networks.py b/models/networks.py
+index ec1686f..20fd3a4 100644
+--- a/models/networks.py
++++ b/models/networks.py
+@@ -147,7 +147,10 @@ def define_G(input_nc, output_nc, ngf, netG, norm="batch", use_dropout=False, in
+     net = None
+     norm_layer = get_norm_layer(norm_type=norm)
+ 
+-    if netG == "resnet_9blocks":
++    if netG in ("resnet_9blocks_fsc", "resnet_6blocks_fsc"):  # fixed smooth convolutional layers (Kinoshita & Kiya)
++        from models.fsc_networks import build_G
++        net = build_G(netG, input_nc, output_nc, ngf, norm, use_dropout)
++    elif netG == "resnet_9blocks":
+         net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9)
+     elif netG == "resnet_6blocks":
+         net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6)
+@@ -192,7 +195,10 @@ def define_D(input_nc, ndf, netD, n_layers_D=3, norm="batch", init_type="normal"
+     net = None
+     norm_layer = get_norm_layer(norm_type=norm)
+ 
+-    if netD == "basic":  # default PatchGAN classifier
++    if netD == "basic_fsc":  # PatchGAN with fixed smooth convolutional layers before every stride-2 convolution
++        from models.fsc_networks import build_D
++        net = build_D(input_nc, ndf, 3, norm)
++    elif netD == "basic":  # default PatchGAN classifier
+         net = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer)
+     elif netD == "n_layers":  # more options
+         net = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer)
+diff --git a/util/visualizer.py b/util/visualizer.py
+index a3573fa..8044bf5 100644
+--- a/util/visualizer.py
++++ b/util/visualizer.py
+@@ -4,7 +4,10 @@ import ntpath
+ import time
+ from . import util, html
+ from pathlib import Path
+-import wandb
++try:
++    import wandb
++except ImportError:  # optional, only for --use_wandb / --display_id > 0
++    wandb = None
+ import os
+ import torch.distributed as dist
+ 

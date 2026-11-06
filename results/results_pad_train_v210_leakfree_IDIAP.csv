@@ -1,0 +1,7 @@
+dataset,extractor,protocol,train_attack,APCER,BPCER,ACER
+IDIAP,fourier,baseline,spoof,0.0,0.004166666666666667,0.0020833333333333333
+IDIAP,fourier,synthetic,leak-free,0.0,0.0,0.0
+IDIAP,haralick,baseline,spoof,0.0125,0.0,0.00625
+IDIAP,haralick,synthetic,leak-free,0.020833333333333332,0.004166666666666667,0.0125
+IDIAP,lbp,baseline,spoof,0.029166666666666667,0.0125,0.020833333333333336
+IDIAP,lbp,synthetic,leak-free,0.05833333333333333,0.020833333333333332,0.03958333333333333

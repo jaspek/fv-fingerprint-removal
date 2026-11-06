@@ -1,0 +1,18 @@
+# data and model files never go into the repository
+data/
+datasets/
+checkpoints/
+samples/
+*.zip
+*.pth
+*.npy
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv*/
+
+# third-party checkouts made by the setup script
+retrain/pytorch-CycleGAN-and-pix2pix/
+retrain/fixed-smooth-conv/
