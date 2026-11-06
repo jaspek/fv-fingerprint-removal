@@ -10,8 +10,16 @@ Operators:
                        median (log magnitude, size x size window) at radii above rmin cycles/px are
                        pulled down to the median (the "frequency-peaks" idea of Wesselkamp et al.;
                        chain it BEFORE specmatch; sweep t, lower t = more aggressive)
-  noisematch:strength=1.0,mode=1,stat=0,scale=1.0   add white noise so the pixel-noise level (stat=0, residual std)
-                           or the share of equal-valued neighbour pairs (stat=1) matches a random real image; needs --ref DIR
+  noisematch:strength=1.0,mode=1,stat=0,scale=1.0   add white noise so the pixel-noise level (stat=0, residual std),
+                           the share of equal-valued neighbour pairs (stat=1) or the high-frequency spectral energy
+                           (stat=2, radii >= rlo cycles/px, default 0.25: what the full-band Fourier PAD measures)
+                           matches a random real image; needs --ref DIR
+  specfill:strength=1.0,mode=1,sectors=8,rmin=0.05,rmax=1.0   additive counterpart of specmatch: random-phase noise
+                           with exactly the energy a (ring, sector) cell lacks against the twin is added, cells with a
+                           surplus and rings outside [rmin, rmax] stay, nothing is rescaled; needs --ref DIR
+  dither:p=0.5,amp=1,flat=0   +-amp on a random share p of the pixels whose 3x3 neighbourhood spans at most `flat`
+                           grey levels: breaks the flat patches behind the equal-neighbour ties of uniform LBP codes
+                           without touching textured regions (SCUT LBP probe); prints the tie share afterwards
   specmatch:strength=1.0,mode=0,energy=0   radial spectrum matching to a real reference population
                            (energy=1: match ring energies |F|^2 instead of the mean log amplitude; use after peaks;
                            sectors=8 additionally matches the angular distribution, ring x sector cells;
@@ -27,8 +35,8 @@ Example:
 import argparse, io, os
 import numpy as np
 from PIL import Image
-from scipy.ndimage import gaussian_filter, median_filter
-from common import list_images, load_gray, save_gray, radial_log_amplitude, radial_log_energy, cell_log_energy, norm_radius
+from scipy.ndimage import gaussian_filter, median_filter, maximum_filter, minimum_filter
+from common import list_images, load_gray, save_gray, radial_log_amplitude, radial_log_energy, cell_log_energy, cell_index, norm_radius
 from scipy.ndimage import gaussian_filter
 
 
@@ -85,28 +93,44 @@ def _tie_frac(x):
     return float((np.diff(q, axis=1) == 0).mean())
 
 
+def _hf_energy(x, rlo=0.25):
+    """Mean spectral energy per bin at radii >= rlo cycles/px, normalised by the pixel count: the quantity
+    the full-band Fourier PAD measures in its outer bands. White noise of std sigma adds sigma^2 to it."""
+    P = np.abs(np.fft.fft2(x)) ** 2 / x.size
+    return float(P[norm_radius(*x.shape) >= rlo].mean())
+
+
 def make_noisematch(ref_dir, limit):
-    """noisematch:strength=1.0,mode=1,stat=0,scale=1.0
-    Add white Gaussian noise so that a pixel-level statistic of the image matches a real reference image:
+    """noisematch:strength=1.0,mode=1,stat=0,scale=1.0,rlo=0.25
+    Add white Gaussian noise so that a statistic of the image matches a real reference image:
       stat=0: the high-pass residual std (noise level); the needed sigma follows from adding in quadrature
       stat=1: the share of equal-valued neighbour pairs (ties), found by bisection on sigma
+      stat=2: the high-frequency spectral energy above rlo cycles/px; sigma^2 is exactly the missing energy
     mode=1 draws a random reference image per input (keeps the spread), mode=0 uses the population mean.
     strength scales the gap to close (1 = full), scale multiplies the resulting sigma (for sweeps).
     Noise is only added, never removed: images already noisier than the reference stay as they are."""
     refs = [load_gray(p) for p in list_images(ref_dir, limit)]
     rstd = np.array([_resid_std(im) for im in refs]); rtie = np.array([_tie_frac(im) for im in refs])
+    rhf = {}                                                          # rlo -> per-reference high-frequency energy
     rng = np.random.default_rng(0)
     probe = rng.standard_normal((256, 256))
     c = float((probe - gaussian_filter(probe, 1.0)).std())        # residual std of unit white noise after the high-pass
     stats = {"n": 0, "sigma_sum": 0.0}
 
-    def op(x, strength=1.0, mode=1.0, stat=0.0, scale=1.0):
+    def op(x, strength=1.0, mode=1.0, stat=0.0, scale=1.0, rlo=0.25):
         i = rng.integers(len(refs))
         if int(stat) == 0:
             target = rstd[i] if int(mode) == 1 else rstd.mean()
             own = _resid_std(x)
             goal = own + strength * (target - own)
             sigma = np.sqrt(max(goal ** 2 - own ** 2, 0.0)) / c
+        elif int(stat) == 2:
+            if rlo not in rhf:
+                rhf[rlo] = np.array([_hf_energy(im, rlo) for im in refs])
+            target = rhf[rlo][i] if int(mode) == 1 else rhf[rlo].mean()
+            own = _hf_energy(x, rlo)
+            goal = own + strength * (target - own)
+            sigma = float(np.sqrt(max(goal - own, 0.0)))
         else:
             target = rtie[i] if int(mode) == 1 else rtie.mean()
             own = _tie_frac(x)
@@ -125,6 +149,67 @@ def make_noisematch(ref_dir, limit):
         if sigma <= 0:
             return x
         return np.clip(x + rng.standard_normal(x.shape) * sigma, 0, 255)
+    op.stats = stats
+    return op
+
+
+def make_specfill(ref_dir, limit, nbins=64):
+    """specfill:strength=1.0,mode=1,sectors=8,rmin=0.05,rmax=1.0
+    Additive counterpart of specmatch. Where a (ring, sector) cell of the image holds less energy than the
+    twin's, random-phase noise carrying exactly the missing energy is added in that cell. Cells with a surplus
+    and the rings below rmin or above rmax are left alone, and the image's own coefficients are never rescaled:
+    the sensor-noise analogy made literal, a noise floor is added and nothing is amplified.
+    Reports the RMS of the added noise as the mean sigma."""
+    refs = [load_gray(p) for p in list_images(ref_dir, limit)]
+    shape = refs[0].shape
+    if any(im.shape != shape for im in refs):
+        raise SystemExit('specfill: reference images must share one size (cells depend on it)')
+    cprofs = {}                                                    # sectors -> per-reference mean |F|^2 per cell
+    rng = np.random.default_rng(0)
+    stats = {"n": 0, "sigma_sum": 0.0}
+
+    def cell_energy(im, S):
+        cells, n = cell_index(im.shape, nbins, S)
+        e = np.abs(np.fft.fft2(im)) ** 2
+        return np.bincount(cells.ravel(), e.ravel(), minlength=n) / np.maximum(np.bincount(cells.ravel(), minlength=n), 1), cells
+
+    def op(x, strength=1.0, mode=1.0, sectors=8.0, rmin=0.05, rmax=1.0):
+        if x.shape != shape:
+            raise SystemExit(f'specfill: input {x.shape} differs from reference size {shape}')
+        S = int(sectors)
+        if S not in cprofs:
+            cprofs[S] = np.array([cell_energy(im, S)[0] for im in refs])
+        i = rng.integers(len(refs))
+        ref = cprofs[S][i] if int(mode) == 1 else np.exp(np.log(cprofs[S] + 1e-12).mean(axis=0))
+        own, cells = cell_energy(x, S)
+        deficit = np.maximum(strength * (ref - own), 0.0)
+        kmin = max(1, int(rmin / (0.5 * np.sqrt(2)) * nbins) + 1) if rmin > 0 else 1
+        kmax = min(nbins, int(rmax / (0.5 * np.sqrt(2)) * nbins)) if rmax < 1.0 else nbins
+        deficit[:kmin * S] = 0.0
+        deficit[kmax * S:] = 0.0
+        N = np.fft.fft2(rng.standard_normal(x.shape))             # E|N|^2 = H*W per bin, Hermitian
+        noise = np.real(np.fft.ifft2(N * np.sqrt(deficit / x.size)[cells]))   # cells are mirror-symmetric, so this is exact
+        stats["n"] += 1; stats["sigma_sum"] += float(noise.std())
+        return np.clip(x + noise, 0, 255)
+    op.stats = stats
+    return op
+
+
+def make_dither():
+    """dither:p=0.5,amp=1,flat=0
+    Flat-patch dithering: pixels whose 3x3 neighbourhood spans at most `flat` grey levels get +-amp with
+    probability p (random sign). Textured regions are not touched. Reports the mean tie share afterwards."""
+    rng = np.random.default_rng(0)
+    stats = {"n": 0, "tie_sum": 0.0}
+
+    def op(x, p=0.5, amp=1.0, flat=0.0):
+        q = np.clip(np.rint(x), 0, 255)
+        span = maximum_filter(q, size=3, mode='nearest') - minimum_filter(q, size=3, mode='nearest')
+        hit = (span <= flat) & (rng.random(q.shape) < p)
+        sign = np.where(rng.random(q.shape) < 0.5, -1.0, 1.0)
+        y = np.clip(q + hit * sign * amp, 0, 255)
+        stats["n"] += 1; stats["tie_sum"] += _tie_frac(y)
+        return y
     op.stats = stats
     return op
 
@@ -205,6 +290,12 @@ def main():
         if not a.ref:
             raise SystemExit('noisematch needs --ref')
         fn = make_noisematch(a.ref, a.ref_limit)
+    elif name == 'specfill':
+        if not a.ref:
+            raise SystemExit('specfill needs --ref')
+        fn = make_specfill(a.ref, a.ref_limit)
+    elif name == 'dither':
+        fn = make_dither()
     elif name in ops:
         fn = ops[name]
     else:
@@ -213,7 +304,13 @@ def main():
     for p in files:
         rel = os.path.splitext(os.path.relpath(p, a.inp))[0] + '.png'
         save_gray(fn(load_gray(p), **params), os.path.join(a.out, rel))
-    extra = f' (mean sigma {fn.stats["sigma_sum"] / max(fn.stats["n"], 1):.2f})' if hasattr(fn, 'stats') else ''
+    extra = ''
+    if hasattr(fn, 'stats'):
+        n = max(fn.stats["n"], 1)
+        if "sigma_sum" in fn.stats:
+            extra = f' (mean sigma {fn.stats["sigma_sum"] / n:.2f})'
+        if "tie_sum" in fn.stats:
+            extra = f' (mean tie share after {fn.stats["tie_sum"] / n:.3f})'
     print(f'{name} {params}: {len(files)} images -> {a.out}{extra}')
 
 

@@ -1,0 +1,16 @@
+dataset,extractor,protocol,train_attack,fold,APCER,BPCER,ACER
+SCUT,fourier,synthetic,leak-free,0,0.06111111111111111,0.0,0.030555555555555555
+SCUT,haralick,synthetic,leak-free,0,0.20972222222222223,0.002777777777777778,0.10625
+SCUT,lbp,synthetic,leak-free,0,1.0,0.0,0.5
+SCUT,fourier,synthetic,leak-free,1,0.18472222222222223,0.0,0.09236111111111112
+SCUT,haralick,synthetic,leak-free,1,0.275,0.0,0.1375
+SCUT,lbp,synthetic,leak-free,1,1.0,0.0,0.5
+SCUT,fourier,synthetic,leak-free,2,0.15416666666666667,0.001388888888888889,0.07777777777777778
+SCUT,haralick,synthetic,leak-free,2,0.26805555555555555,0.004166666666666667,0.1361111111111111
+SCUT,lbp,synthetic,leak-free,2,1.0,0.0,0.5
+SCUT,fourier,synthetic,leak-free,3,0.07083333333333333,0.006944444444444444,0.03888888888888889
+SCUT,haralick,synthetic,leak-free,3,0.26666666666666666,0.002777777777777778,0.13472222222222222
+SCUT,lbp,synthetic,leak-free,3,1.0,0.0,0.5
+SCUT,fourier,synthetic,leak-free,4,0.06944444444444445,0.0,0.034722222222222224
+SCUT,haralick,synthetic,leak-free,4,0.20416666666666666,0.001388888888888889,0.10277777777777777
+SCUT,lbp,synthetic,leak-free,4,1.0,0.0,0.5

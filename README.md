@@ -30,6 +30,10 @@ Two frequency-domain operators, both leaving the phase untouched, plus one pixel
 - **Noise-level matching** (`noisematch`): white noise is added per image until the share of
   equal-valued neighbour pixels matches that of a real attack twin, so the noise level is chosen
   by the data.
+- **Spectrum filling** (`specfill`): random-phase noise whose energy per ring and sector is the
+  deficit of the image against its twin, so nothing is taken away and the phase stays untouched.
+- `dither` (probe only): flips flat 3x3 neighbourhoods by one grey level to change the share of
+  equal-valued neighbours without touching the spectrum.
 
 ## Results
 
@@ -48,22 +52,55 @@ baseline = trained on real attacks.
 | IDIAP cleaned | noise-level matching, sigma 1.4 on average | 0.0 | 5.8 | 2.1 |
 | IDIAP baseline | | 0.0 | 2.9 | 1.3 |
 | SCUT untouched | | 94.1 | 100.0 | 59.6 |
+| SCUT cleaned | spectrum matching only, rmin 0.05 | 11.6 | 99.8 | 29.3 |
+| SCUT cleaned | spectrum filling, rmin 0.45, sigma 0.65 on average | 10.8 | 100.0 | 24.5 |
+| SCUT cleaned | notch + spectrum matching, rmin 0.05 | 12.1 | 99.7 | 32.5 |
 | SCUT cleaned | noise-level matching, sigma 0.3 on average | 23.0 | 99.8 | 30.4 |
-| SCUT cleaned | white noise, sigma 0.5 | 11.8 | 100.0 | 30.1 |
+| SCUT cleaned | white noise, sigma 0.5 (sweep, not a recipe) | 11.8 | 100.0 | 30.1 |
 | SCUT baseline | | 4.6 | 1.4 | 0.1 |
 
-PLUS and IDIAP are closed on all three extractors. SCUT is the open case: LBP does not move, the
-Haralick detector keeps a floor near 30 %, and the tie statistic chooses too little noise for the
-full-band Fourier detector (sigma 0.3 against the 0.5 of the sweep). More noise is a fingerprint of
-its own: sigma 1.0 gives Fourier 58 % and Haralick 84 % again, so the level must be matched, not
-maximised. The sigma 0.5 row was selected on the evaluation itself and is reported as a sweep, not
-as a recipe.
+PLUS and IDIAP are closed on all three extractors. On SCUT, spectrum matching brings the Fourier
+detector from 94 to 12 % without any added noise, and spectrum filling (random-phase noise with the
+per-cell energy deficit of the twin, rings above 0.45 cycles per pixel only) gives the same within
+the fold spread. The notch adds nothing on SCUT. Two signatures stay: the Haralick detector keeps a
+floor near 25 to 30 %, and LBP does not move under any spectral operator or noise level. Added
+noise alone does not solve it either: the tie statistic chooses too little for the full-band Fourier
+detector (sigma 0.3 against the 0.5 of the sweep), and more noise is a fingerprint of its own
+(sigma 1.0 gives Fourier 58 % and Haralick 84 %).
+
+The chain of PLUS (notch, then leak-free spectrum matching) on the four GAN sets of the course,
+360 images each, APCER in percent untouched / cleaned:
+
+| source | Fourier | LBP | Haralick |
+|---|---|---|---|
+| DRIT | 100.0 / 37.4 | 98.9 / 0.7 | 98.1 / 0.3 |
+| CycleGAN | 70.7 / 52.4 | 0.4 / 0.7 | 0.0 / 0.0 |
+| DistanceGAN | 100.0 / 21.5 | 96.5 / 1.0 | 0.0 / 0.0 |
+| StarGAN v2 | 100.0 / 18.9 | 99.2 / 0.7 | 0.0 / 0.0 |
+
+LBP and Haralick are closed for every GAN without per-GAN tuning; the Fourier detector keeps 19 to
+52 % with a fold spread of about 20 points, and the CycleGAN set, the least detectable one
+untouched, ends up worst.
+
+Ablation on PLUS (`results_pad_train_v210_PLUS_development.csv`, twins drawn from all real attack
+images, so not leak-free), Fourier / LBP APCER: notch alone 98.0 / 95.1, notch + ring-energy
+matching without sectors 84.7 / 0.7, ring times sector matching at full strength 6.4 / 0.7 (rmin 0),
+7.8 / 0.9 (rmin 0.03) and 11.1 / 1.0 (rmin 0.05, the operating point, chosen for image quality),
+partial strengths 0.5 and 0.75 leave 94.3 / 82.5 and 34.2 / 21.4. Haralick is 0 in every row. On
+IDIAP the notch alone is harmful: Fourier 79.6 to 100, LBP 74.6 to 95.8, Haralick 51.3 to 98.3, the
+pressed-down bins are a fingerprint of their own (`results_pad_train_v210_IDIAP_notch.csv`).
 
 Generator side: a CycleGAN retrained on PLUS with the fixed smooth convolution layer of
 Kinoshita and Kiya (Osakabe et al., IWAIT 2021) loses the checkerboard peaks but keeps the
 high-frequency deficit. The Fourier detector still misses 99 % of real attacks, the cleaning chain
 brings it to 8 to 10 %. At random initialisation the period-2 checkerboard energy on the Nyquist
 lines drops from 49.5 to 0.25 times the spectrum mean.
+
+Detector probe (`results_probe_PLUS_v210.csv`): a radial-spectrum SVM trained to separate real
+attacks from untouched AE_Res samples (accuracy 0.999) calls 12 % of the cleaned fold-0 samples
+and 0 % of the cleaned fixed-layer CycleGAN samples synthetic, with the ranking largely intact
+(AUC 0.985 and 0.894). The cleaning moves the samples across the threshold of a detector trained
+on untouched fakes; the harness's synthetic protocol retrains the detector on the cleaned set.
 
 Earlier tables from pad_train 1.0.2 (lower-thirds Fourier bands on IDIAP and SCUT, unscaled
 Haralick, scikit-learn 1.7.2) are kept in `results/` and must not be mixed with the 2.1.0 tables,
@@ -74,7 +111,7 @@ because the fold partition depends on the scikit-learn version, see
 
 | folder | content |
 |---|---|
-| `tools/` | removal operators (`apply_removal.py`), quality metrics, sweep scripts, runners for the harness |
+| `tools/` | removal operators (`apply_removal.py`), quality metrics, sweep scripts, runners for the harness, the batch driver `run_all_experiments.ps1` |
 | `retrain/` | CycleGAN data preparation and export, the fixed-smooth-convolution networks, the patch for the official CycleGAN code |
 | `results/` | every result table as CSV, with an index |
 
@@ -113,7 +150,19 @@ python tools/apply_removal.py --in <root>/AE_Res-diff/SCUT/spoof/samples --out <
 python tools/run_pad_train_cleaned.py --data-root <root> --source AE_Res-noise0.5 --datasets SCUT --out results/results_pad_train_v210_recheck_SCUT.csv
 ```
 
-Each leak-free run cleans the five folds one after the other and takes hours on a CPU.
+Spectrum matching only and spectrum filling on SCUT:
+
+```
+python tools/run_pad_train_leakfree.py --data-root <root> --dataset SCUT --notched AE_Res-diff --op-name specmatch --match "strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05" --out-prefix AE_Res-match --out results/results_pad_train_v210_leakfree_SCUT_match.csv
+python tools/run_pad_train_leakfree.py --data-root <root> --dataset SCUT --notched AE_Res-diff --op-name specfill --match "strength=1.0,mode=1,sectors=8,rmin=0.45" --out-prefix AE_Res-fill --out results/results_pad_train_v210_leakfree_SCUT_fill.csv
+```
+
+Each leak-free run cleans the five folds one after the other; the runner extracts the features of
+the real images once and reuses them for every fold, a SCUT run takes about 70 minutes on six
+cores. `tools/run_all_experiments.ps1` runs the whole batch of 6 November (quality metrics, the
+detector probe, the three SCUT variants, the four GAN sets, the PLUS ablation, the dither probe)
+in order with checkpoints: it reads the data root from `PAD_DATA_ROOT`, expects `python` to be
+the Python 3.12 with pad-train, and writes tables and logs below `results/`.
 
 ## Retraining the generator
 

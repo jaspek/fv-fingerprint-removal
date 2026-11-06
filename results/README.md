@@ -24,6 +24,11 @@ not be mixed in one table.
 | `results_pad_train_v210_recheck_SCUT.csv` | white noise sigma 0.5 and 1.0 |
 | `results_pad_train_v210_leakfree_PLUS.csv` (+ `_per_fold`) | notch + matching, rmin 0.05, twins from the training subjects of each fold |
 | `results_pad_train_v210_leakfree_IDIAP.csv`, `..._SCUT.csv` (+ `_per_fold`) | noise-level matching per fold (equal-neighbour share, twins from the training subjects), mean sigma 1.4 on IDIAP and 0.3 on SCUT |
+| `results_pad_train_v210_leakfree_SCUT_match.csv`, `..._fill.csv`, `..._chain.csv` (+ `_per_fold`) | SCUT: spectrum matching only (rmin 0.05), spectrum filling (rmin 0.45), notch then matching; twins from the training subjects of each fold |
+| `results_pad_train_v210_leakfree_PLUS_drit.csv`, `..._cyclegan.csv`, `..._distancegan.csv`, `..._stargan-v2.csv` (+ `_per_fold`) | the chain (notch, then leak-free matching) on the course GAN sets of PLUS, variants 003, 003, 001, 001 |
+| `results_pad_train_v210_PLUS_development.csv` | ablation on PLUS, twins from all real PAI: notch only, notch + ring matching, ring x sector matching at rmin 0 and strengths 0.5 and 0.75, rmin 0.03, the retrained CycleGAN sets untouched |
+| `results_pad_train_v210_IDIAP_notch.csv` | notch only on IDIAP (harmful on all three extractors) |
+| `results_probe_PLUS_v210.csv` | radial-spectrum SVM probe: real attacks against untouched AE_Res, applied to the cleaned fold-0 set and the fixed-layer CycleGAN set before and after cleaning |
 
 ## pad_train 1.0.2, PLUS
 
@@ -65,7 +70,9 @@ not be mixed in one table.
 `quality_*.csv` hold PSNR and SSIM per image of a cleaned PLUS set against the untouched one:
 `clean2` is the chain with rmin 0, `clean2_s0.5` and `s0.75` the partial strengths, `clean3_r0.03`
 and `r0.05` the window variants, `cyclegan_fsc_clean*` the chain on the fixed-layer CycleGAN set
-(rmin 0.05, 0 and 0.02).
+(rmin 0.05, 0 and 0.02). `quality_PLUS_leakfree_v210_fold0.csv`, `quality_IDIAP_nmties_v210_fold0.csv`,
+`quality_SCUT_nmties_v210_fold0.csv` and `quality_SCUT_noise0.5.csv` are the 2.1.0 recipes on fold 0 (PSNR is
+inf for images the noise matching left unchanged: 10 on IDIAP, 274 on SCUT).
 
 ## Smoke test
 

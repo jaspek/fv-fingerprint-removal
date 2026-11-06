@@ -26,7 +26,7 @@ def main():
     a = ap.parse_args()
 
     settings.data_root = Path(a.data_root)
-    settings.scale_features = a.scale
+    settings.scale_features = True if a.scale else None  # None = the harness default (pad-train >= 2.0: scaled Haralick, raw Fourier and LBP)
     for name in a.source:
         if not (settings.data_root / name).is_dir():
             raise SystemExit(f"missing folder: {settings.data_root / name}")

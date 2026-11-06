@@ -1,0 +1,9 @@
+set,metric,value
+real_vs_fake,cv_accuracy,0.9987
+real_vs_fake,cv_auc,1.0000
+cleaned,fraction_called_synthetic,0.1220
+cleaned,auc_vs_real,0.9849
+cyclegan_fsc,fraction_called_synthetic,0.9300
+cyclegan_fsc,auc_vs_real,1.0000
+cyclegan_fsc_clean,fraction_called_synthetic,0.0000
+cyclegan_fsc_clean,auc_vs_real,0.8940
