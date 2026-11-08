@@ -1,0 +1,10 @@
+dataset,extractor,protocol,train_attack,APCER,BPCER,ACER
+PLUS,fourier,baseline,spoof,0.048084291187739464,0.0907088122605364,0.06939655172413792
+PLUS,fourier,synthetic,CycleGAN-stock-100,0.992624521072797,0.005,0.49881226053639843
+PLUS,fourier,synthetic,CycleGAN-fsc-100,0.9808812260536399,0.008333333333333333,0.49460727969348656
+PLUS,haralick,baseline,spoof,0.0,0.0,0.0
+PLUS,haralick,synthetic,CycleGAN-stock-100,0.0,0.0,0.0
+PLUS,haralick,synthetic,CycleGAN-fsc-100,0.0,0.0022222222222222222,0.0011111111111111111
+PLUS,lbp,baseline,spoof,0.0,0.0,0.0
+PLUS,lbp,synthetic,CycleGAN-stock-100,0.005,0.0,0.0025
+PLUS,lbp,synthetic,CycleGAN-fsc-100,0.1042528735632184,0.0,0.0521264367816092

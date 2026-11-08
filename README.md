@@ -113,7 +113,11 @@ Generator side: a CycleGAN retrained on PLUS with the fixed smooth convolution l
 Kinoshita and Kiya (Osakabe et al., IWAIT 2021) loses the checkerboard peaks but keeps the
 high-frequency deficit. The Fourier detector still misses 99 % of real attacks, the cleaning chain
 brings it to 8 to 10 %. At random initialisation the period-2 checkerboard energy on the Nyquist
-lines drops from 49.5 to 0.25 times the spectrum mean.
+lines drops from 49.5 to 0.25 times the spectrum mean. Training both generators on from epoch 60
+to 100 with the learning rate restarted changes nothing: Fourier 99.3 and 98.1 %, LBP 0.5 and
+10.4 % (stock and fixed layer), and the ring-energy deficit above 0.03 cycles per pixel stays at
+2 to 4 dB, 1 dB deeper for the fixed layer. The deficit is not a matter of training length
+(`results_pad_train_v210_PLUS_cyclegan100.csv`).
 
 Detector probe (`results_probe_PLUS_v210.csv`): a radial-spectrum SVM trained to separate real
 attacks from untouched AE_Res samples (accuracy 0.999) calls 12 % of the cleaned fold-0 samples
@@ -211,6 +215,17 @@ The stock run is the same with `--netG resnet_9blocks --netD basic`. The exporte
 evaluated like a cleaned set with `tools/run_pad_train_cleaned.py --source CycleGAN-fsc`.
 `FSC_ORDER=1` selects the 3x3 triangle kernel instead of the 2x2 zero-order hold. Image sides must
 be multiples of 4.
+
+To train on from the epoch-60 weights (the official code does not save the optimiser state, so the
+linear schedule restarts at its value for epoch 61, 1.57e-4, and reaches 0 at epoch 100; the result
+is "30 + 30, then 40 more epochs with the learning rate restarted", not 50 + 50), then translate
+with the epoch-100 generator into a separate results folder:
+
+```
+python train.py --dataroot ../datasets/plus_fv --name plus_fsc --model cycle_gan --netG resnet_9blocks_fsc --netD basic_fsc --input_nc 1 --output_nc 1 --preprocess crop --crop_size 192 --no_flip --batch_size 2 --n_epochs 50 --n_epochs_decay 50 --save_epoch_freq 5 --continue_train --epoch latest --epoch_count 61
+python test.py --dataroot ../datasets/plus_fv --name plus_fsc --model test --model_suffix _A --epoch 100 --netG resnet_9blocks_fsc --input_nc 1 --output_nc 1 --preprocess none --no_dropout --num_test 2048 --no_flip --results_dir ./results_100
+python ../export_synthetic.py --results results_100/plus_fsc/test_100/images --data-root <root> --name CycleGAN-fsc-100 --dataset PLUS
+```
 
 ## References
 
