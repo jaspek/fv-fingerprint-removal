@@ -19,7 +19,7 @@ def main():
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--source", action="append", required=True, help="folder name below the data root (repeatable)")
     ap.add_argument("--datasets", nargs="+", default=["PLUS"])
-    ap.add_argument("--extractors", nargs="+", default=["fourier", "haralick", "lbp"])
+    ap.add_argument("--extractors", nargs="+", default=["fourier", "haralick_mahotas", "lbp"])
     ap.add_argument("--per-fold", action="store_true")
     ap.add_argument("--scale", action="store_true", help="standardise the features before the k-NN (StandardScaler fitted on the training fold only)")
     ap.add_argument("--out", required=True)

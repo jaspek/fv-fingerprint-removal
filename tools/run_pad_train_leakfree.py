@@ -51,7 +51,7 @@ def main():
     ap.add_argument("--spoof-dir", default=None, help="real PAI folder with one sub-folder per subject (default: PLUS layout)")
     ap.add_argument("--match", default="strength=1.0,mode=1,energy=1,sectors=8,rmin=0.05", help="specmatch options")
     ap.add_argument("--op-name", default="specmatch", help="operator that takes --ref: specmatch, specfill or noisematch")
-    ap.add_argument("--extractors", nargs="+", default=["fourier", "haralick", "lbp"])
+    ap.add_argument("--extractors", nargs="+", default=["fourier", "haralick_mahotas", "lbp"])
     ap.add_argument("--out-prefix", default="AE_Res-leakfree")
     ap.add_argument("--out", required=True)
     ap.add_argument("--dry-run", action="store_true", help="only print the fold split and the planned commands")
